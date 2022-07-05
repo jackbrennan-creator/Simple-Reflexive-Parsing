@@ -7,7 +7,7 @@ The example program shows how it can be used to
 2. Parse, unparse and evaluate a complex expression. 
 1. Parse text representing an EBNF grammar and unparse it back into a fully formatted text.
 
-![Parsing Examples](https://github.com/jackbrennan-creator/reflexive-parsing/blob/master/example_form.png)
+![Parsing Examples](https://github.com/jackbrennan-creator/Reflexive-Parsing/blob/main/example_form.png)
 
 The example solution contains both the example project and the parsable library project. The latter can be compiled into a standalone component for use with other projects.
 
