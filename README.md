@@ -11,6 +11,6 @@ The example program shows how it can be used to
 
 The example solution contains both the example project and the parsable library project. The latter can be compiled into a standalone component for use with other projects.
 
-The User Manual PDF document should provide enough information to get started using the library.
+The [User Manual](https://github.com/jackbrennan-creator/Reflexive-Parsing/blob/main/User%20Manual.pdf) PDF document should provide enough information to get started using the library.
 
-The Implementation Notes (comments) document provides details of the internal implementation of the library.
+The [Implementation Notes](https://github.com/jackbrennan-creator/Reflexive-Parsing/blob/main/Implementation%20Notes.pdf) (comments) document provides details of the internal implementation of the library.
