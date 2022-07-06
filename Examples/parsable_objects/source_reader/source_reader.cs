@@ -140,7 +140,7 @@ namespace parsable_objects
         current = end_of_file;
       else if (digits.IndexOf(text[pt]) >= 0)
         get_number();
-      else if (letters.IndexOf(text[pt]) >= 0)
+      else if (id_chars.IndexOf(text[pt]) >= 0)
         get_identifier();
       else if (text[pt] == string_quote)
         get_string();
@@ -267,13 +267,11 @@ namespace parsable_objects
         advance();
         if (pt < text.Length) ch = text[pt]; else eof = true;
       }
-      string spelling = text.Substring(first_ch, pt - first_ch);
-      current = new reserved_word(spelling);
-      if (!is_reserved(spelling))
-        if (spelling != spelling.ToLower())
-          current = new punctuation("<?>");
-        else
-          current = new identifier(spelling);
+      string spelling = text.Substring(first_ch, pt - first_ch);    
+      if (is_reserved(spelling))
+        current = new reserved_word(spelling);
+      else
+        current = new identifier(spelling);
     }
 
     private void get_punctuation()
