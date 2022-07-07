@@ -185,6 +185,11 @@ namespace parsable_objects
       }
     }
     
+    public void separate_lines<t>(List<t> ts, action<t> writer)
+    {
+      separate_lines(ts, writer, 1);
+    }
+    
     public void separate_lines<t>(List<t> ts, action<t> writer, int lines)
     {
       for (int i = 0; i < ts.Count; i = i + 1)
