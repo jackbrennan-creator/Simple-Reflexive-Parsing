@@ -13,6 +13,7 @@ namespace parsable_objects
     internal static Stack<bool>                    checking_left_recursion_state = new Stack<bool>();
     internal static bool                           checking_left_recursion       = false;
     internal static Stack<object>                  elements                      = new Stack<object>();
+    internal static source_reader                  current_source                = null;
     
     public static void reset()
     {
@@ -26,6 +27,7 @@ namespace parsable_objects
     
     public static void define<t>(source_reader source) where t: parsable, new()
     {
+      current_source = source;
       analyse(typeof(t));
       foreach (production p in parsable.productions.Values) p.firsts.flattern();
       source.define_symbols(symbols);
@@ -83,7 +85,99 @@ namespace parsable_objects
       }
     }
     
+    public delegate void method_unparser(string access_mode, source_builder source);
+    
+    public static void unparse_classes(bool partial, source_builder source)
+    {
+      unparse_classes(partial, "", source);
+    }
+    
+    public static void unparse_classes(bool partial, string interface_name, source_builder source, params method_unparser[] inteface_methods)
+    {
+      if (interface_name != "")
+      {
+        unparse_interface(interface_name, source, inteface_methods);
+        source.new_line();
+      }
+      List<production> top_level_productions = productions.Values.Where((p1) => !p1.t.IsNested).ToList();
+      source.separate_lines(top_level_productions, (p) => unparse_class(partial, p, interface_name, source, inteface_methods));
+    }
+    
+    private static void unparse_interface(string interface_name, source_builder source, params method_unparser[] inteface_methods)
+    {
+      source.write("interface " + interface_name);
+      source.new_line();
+      source.write("{");
+        source.indent();
+        source.new_line();
+        if (inteface_methods.Length > 0)
+          unparse_interface_methods("", source, inteface_methods);
+        else source.new_line();
+        source.outdent();
+      source.write("}");
+      source.new_line();
+    }
+
+    private static void unparse_interface_methods(string access_mode, source_builder source, method_unparser[] inteface_methods)
+    {
+      int i = 0;
+      foreach (method_unparser m in inteface_methods)
+      {
+        if (i > 0) source.new_line();
+        m(access_mode == "" ? "" : access_mode + " ", source);
+        if (access_mode == "") source.write(";");
+        source.new_line();
+        if (access_mode != "")
+        {
+          source.write("{");
+          source.new_line();
+          source.write("}");
+          source.new_line();
+        }
+        i = i + 1;
+      }
+    }
+    
+    private static void unparse_class(bool partial, production p, string interface_name, source_builder source, method_unparser[] inteface_methods)
+    {
+      source.write((partial ? "partial " : "") + "class " + p.t.Name + ((interface_name == "") ? "" : ": " + interface_name));
+      source.new_line();
+      source.write("{");
+      source.new_line();
+        source.indent();
+          Type   definition = p.t;
+          Type[] types      = definition.GetNestedTypes(BindingFlags.NonPublic | BindingFlags.Public);
+          int    i          = 0;
+          List<Type> subtypes = types.Where((t) => t.IsSubclassOf(definition)).ToList();
+          source.separate_lines(subtypes, (t) => unparse_nested_class(partial, p.t, t, source, inteface_methods));
+          source.new_line();
+          if (inteface_methods.Length > 0)
+            unparse_interface_methods(subtypes.Count > 0 ? "public virtual" : "public", source, inteface_methods);
+        source.outdent();
+      source.write("}");
+      source.new_line();
+    }
+    
+    private static void unparse_nested_class(bool partial, Type parent_type, Type t, source_builder source, method_unparser[] inteface_methods)
+    {
+      source.write((partial ? "partial " : "") + "class " + t.Name + ": " + parent_type.Name);
+      source.new_line();
+      source.write("{");
+        source.indent();
+          source.new_line();
+          if (inteface_methods.Length > 0)
+            unparse_interface_methods("public override", source, inteface_methods);
+          else source.new_line();
+        source.outdent();
+      source.write("}");
+      source.new_line();
+    }
+    
     public virtual void parsed()
+    {
+    }
+    
+    public virtual void parsed(source_reader source)
     {
     }
     
@@ -114,7 +208,8 @@ namespace parsable_objects
       foreach (Type t in types)
         if (t.IsSubclassOf(definition))
         {
-          if (!t.IsNestedPrivate) grammar_error("Class " + t.Name + ": parsable subtypes must be private");
+          //////
+          //if (!t.IsNestedPrivate) grammar_error("Class " + t.Name + ": parsable subtypes must be private");
           if (has_parsable_fields(definition, t)) anaylse_parsable_fields(definition, t);
           else grammar_error("Class " + t.Name + " must define at least one parsable field");
           productions[definition.Name].add_alternative(new List<component>{non_terminal_component_of_type(t)}, t);  
@@ -150,6 +245,44 @@ namespace parsable_objects
         productions[alternative_type.Name].add_alternative(components, alternative_type);
       }
     }
+    
+    private static component new_lexeme_component(Type lexeme_type)
+    {
+      if      (lexeme_type == typeof(int)       ) return new number_component        ();
+      else if (lexeme_type == typeof(double)    ) return new real_component          ();
+      else if (lexeme_type == typeof(char)      ) return new char_literal_component  ();
+      else if (lexeme_type == typeof(string)    ) return new string_literal_component();
+      else if (lexeme_type == typeof(identifier)) return new identifier_component    ();
+      else 
+      {
+        grammar_error(lexeme_type.Name + " is not a lexeme");
+        return null;
+      }
+    }
+    
+    //private static void anaylse_parsable_fields(Type definition, Type alternative_type)
+    //{
+    //  List<FieldInfo> fields = get_parsable_fields(alternative_type);
+    //  if (fields.Count > 0)
+    //  {
+    //    List<component> components = new List<component>();
+    //    foreach (FieldInfo field in fields) 
+    //      if      (is_iteration(field.FieldType)           ) components.Add(create_iteration_component(field)    );
+    //      else if (is_parsable(field.FieldType)            ) components.Add(non_terminal_component_of_type(field.FieldType)              );
+    //      else if (field.FieldType == typeof(int)          ) components.Add(new number_component()               );
+    //      else if (field.FieldType == typeof(double)       ) components.Add(new real_component()                 );
+    //      else if (field.FieldType == typeof(char)         ) components.Add(new char_literal_component()         );
+    //      else if (field.FieldType == typeof(string)       ) components.Add(new string_literal_component()       );
+    //      else if (field.FieldType == typeof(identifier)   ) components.Add(new identifier_component()           );
+    //      else if (field.FieldType.IsEnum                  ) components.Add(create_alternative_component(field)  ); 
+    //      else if (field.FieldType == typeof(punctuation)  ) components.Add(create_punctuation_component(field)  );
+    //      else if (field.FieldType == typeof(reserved_word)) components.Add(create_reserved_word_component(field));
+    //      else if (is_parsable_list(field.FieldType)       ) components.Add(create_list_component(field)         );
+    //      else grammar_error("Parse attribute can only be applied to fields with parsable types");
+    //    add_production(alternative_type);
+    //    productions[alternative_type.Name].add_alternative(components, alternative_type);
+    //  }
+    //}
     
     internal static void add_production(Type definition)
     {
@@ -336,6 +469,7 @@ namespace parsable_objects
       Parse    attribute              = (Parse)attributes[0];
       Type     element_type           = f.FieldType.GetGenericArguments()[0];
       Type     any_optional_type      = typeof(Iteration<>);
+      if (!element_type.IsSubclassOf(typeof(parsable))) grammar_error("List element " + element_type.Name + " is not a subtype of parsible");
       Type     required_optional_type = any_optional_type.MakeGenericType(new Type[] { element_type });
       if (attribute.spelling != null)
         return non_terminal_component_of_type(required_optional_type, attribute.spelling);
@@ -385,6 +519,12 @@ namespace parsable_objects
     {
       FieldInfo[] fields = t.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Where(f => f.GetCustomAttributes(typeof(Parse), false).Length > 0).ToArray();
       return fields.OrderBy(f =>((Parse)f.GetCustomAttributes(typeof(Parse), false)[0]).order).ToList();
+    }
+    
+    internal static List<FieldInfo> get_marked_fields(Type t)
+    {
+      FieldInfo[] fields = t.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Where(f => f.GetCustomAttributes(typeof(Mark), false).Length > 0 && f.FieldType == typeof(source_position)).ToArray();
+      return fields.ToList();
     }
     
     internal static void error(string message)

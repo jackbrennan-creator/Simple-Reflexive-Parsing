@@ -144,19 +144,19 @@ namespace parsable_objects
 
     public void indent(int indentation_size)
     {
-      if (single_line) return;
+      if (single_line || indentation_size < 0) return;
       indentation = indentation + indentation_size;
     }
 
     public void outdent()
     {
-      if (single_line) return;
+      if (single_line || indentation_size > indentation) return;
       indentation = indentation - indentation_size;
     }
 
     public void outdent(int indentation_size)
     {
-      if (single_line) return;
+      if (single_line || indentation_size > indentation) return;
       indentation = indentation - indentation_size;
     }
     

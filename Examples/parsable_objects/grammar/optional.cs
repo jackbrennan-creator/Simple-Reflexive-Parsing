@@ -14,6 +14,11 @@ namespace parsable_objects
       assigned = false;
     }
     
+    public Optional(t value)
+    {
+      Assign(value);
+    }
+    
     internal void Assign(t value)
     {
       this.value    = value;

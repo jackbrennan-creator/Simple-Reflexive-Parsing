@@ -13,6 +13,7 @@ namespace parsable_objects
     public bool              defined;
     public bool              maybe_left_recursive;
     public List<FieldInfo>   fields;
+    public List<FieldInfo>   marked_fields;
     
     public production(Type t)
     {
@@ -22,6 +23,7 @@ namespace parsable_objects
       this.maybe_empty          = false;
       this.defined              = false;
       this.fields               = parsable.get_parsable_fields(t);
+      this.marked_fields        = parsable.get_marked_fields(t);
       this.maybe_left_recursive = false;
     }
     
@@ -53,6 +55,7 @@ namespace parsable_objects
       int alternative_index = 0;
       int elements_parsed   = 0;
       Type element_type     = t;
+      int  start            = source.position;
       if (firsts.can_accept(source) || maybe_empty) 
       {
         foreach (var a in alternatives)
@@ -71,6 +74,8 @@ namespace parsable_objects
       }
       else parsable.error("Missing " + t.Name);
       push_result(alternative_index, elements_parsed, element_type); 
+      if (marked_fields.Count > 0) 
+        marked_fields[0].SetValue(parsable.elements.Peek(), new source_position(start, source.position - start));
     }
 
     private void push_result(int alternative_index, int elements_parsed, Type element_type)
@@ -84,6 +89,7 @@ namespace parsable_objects
         for (int i = 1; i <= elements_parsed; i = i + 1) field_elements.Push(parsable.elements.Pop());
         assign_fields(parsed_object, field_elements, alternative_index);
         parsed_object.parsed();
+        if (parsable.current_source != null) parsed_object.parsed(parsable.current_source);
         parsable.elements.Push(parsed_object);
       }
       else parsable.grammar_error("Class " + t.Name + " must have an accessible parameterless, default constuctor");
@@ -147,6 +153,24 @@ namespace parsable_objects
       }
       source.write(";");
       source.outdent(definition.Length);
+    }
+    
+    public void unparse_class(source_builder source)
+    {
+      source.write("Class " + t.Name);
+      source.new_line();
+      source.write("{");
+        source.indent();
+          if (alternatives.Count > 1)
+          {
+          }
+          else ;
+        source.outdent();
+      source.write("}");
+    }
+    
+    private void unparse_sub_class(alternative a, source_builder source)
+    {
     }
   }
 }

@@ -61,12 +61,14 @@
     <Compile Include="grammar\string_literal_component.cs" />
     <Compile Include="grammar\terminal_component.cs" />
     <Compile Include="grammar\reserved_word_component.cs" />
+    <Compile Include="parsable\mark_attribute.cs" />
     <Compile Include="parsable\parsable.cs" />
     <Compile Include="parsable\parse_attribute.cs" />
     <Compile Include="parsable\parse_error.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="source_reader\lexemes.cs" />
     <Compile Include="source_reader\lexeme_set.cs" />
+    <Compile Include="source_reader\source_position.cs" />
     <Compile Include="source_reader\source_reader.cs" />
     <Compile Include="source_builder\source_builder.cs" />
     <Compile Include="source_builder\unparsable.cs" />

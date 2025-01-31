@@ -9,7 +9,7 @@ namespace parsable_objects
   {
     private static string  lower_case              = "abcdefghijklmnopqrstuvwxyz";
     private static string  upper_case              = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    private static string  radix_prefix_chars      = "";
+    private static string  radix_prefix_chars      = "#";
     private static string  digits                  = "0123456789";
     private static string  binary_digits           = "01";
     private static string  octal_digits            = "01234567";
@@ -20,7 +20,6 @@ namespace parsable_objects
     private static string  letters                 = lower_case + upper_case;
     private static string  id_chars                = lower_case + upper_case + digits + separator;
     private static string  layout                  = " " + "\t" + Environment.NewLine;
-    private char           comment_char            = '\0';
     
     private const  int     puntuation_index_size   = 256;
     
@@ -71,16 +70,6 @@ namespace parsable_objects
     public string full_text()
     {
       return text;
-    }
-    
-    public void set_comment_ch(char new_comment_char)
-    {
-      comment_char = new_comment_char;
-    }
-    
-    public void set_radix_prefix_chars(string chars)
-    {
-      radix_prefix_chars = chars;
     }
     
     internal void add_reserved_word(string reserved_word)
@@ -167,14 +156,12 @@ namespace parsable_objects
     {
       pt     = pt + 1;
       column = column + 1;
-      eof    = pt >= text.Length;
     }
     
     private void advance(int chars)
     {
       pt     = pt + chars;
       column = column + chars;
-      eof    = pt >= text.Length;
     }
     
     private void new_line()
@@ -187,21 +174,10 @@ namespace parsable_objects
     private void skip_layout()
     {
       char ch = text[pt];
-      while ((layout.IndexOf(ch) >= 0 || ch == comment_char) & !eof)
+      while (layout.IndexOf(ch) >= 0 & !eof)
       {
-        if (ch == comment_char) skip_to_eol();
         if (ch == '\n') new_line(); else advance();
         if (pt < text.Length) ch = text[pt]; else eof = true;
-      }
-    }
-    
-    private void skip_to_eol()
-    {
-      char ch = text[pt];
-      while (!eof && ch != '\n') 
-      {
-        advance();
-        if (!eof) ch = text[pt];
       }
     }
 
@@ -355,39 +331,10 @@ namespace parsable_objects
       else
       {
         string chars = text.Substring(first_ch + 1, pt - first_ch - 1);
-        chars = chars.Replace("\"\"", "\"");
-        chars = UnescapeCodes(chars);
-        current = new string_literal(chars);
+        current = new string_literal(chars.Replace("\"\"", "\""));
         advance();
         eof = pt >= text.Length;
       }
-    }
-    
-    public static string UnescapeCodes(string source) 
-    {
-      var pattern = new System.Text.RegularExpressions.Regex("\\\\([0-9bBtTrRvVfFnN]+)");
-      var result  = new System.Text.StringBuilder();
-      var pt      = 0;
-      foreach (System.Text.RegularExpressions.Match m in pattern.Matches(source)) 
-      {
-        result.Append(source.Substring(pt, m.Index - pt));
-        pt = m.Index + m.Length;
-        string escape_code = m.Groups[1].ToString();
-        char   replacement = '?';
-        switch (escape_code)
-        {
-          case "b": case "B": replacement = '\b';                                                      break;
-          case "t": case "T": replacement = '\t';                                                      break;
-          case "r": case "R": replacement = '\r';                                                      break;
-          case "v": case "V": replacement = '\v';                                                      break;
-          case "f": case "F": replacement = '\f';                                                      break;
-          case "n": case "N": replacement = '\n';                                                      break;
-          default           : try { replacement = (char)Convert.ToInt32(escape_code, 10); } catch { }; break;
-        }
-        result.Append(replacement);
-      }
-      result.Append(source.Substring(pt));
-      return result.ToString();
     }
 
     private void get_character()
